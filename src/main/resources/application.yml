@@ -1,0 +1,67 @@
+spring:
+  application:
+    name: portal-server 
+    
+# Spring Boot Admin
+  boot:
+    admin:
+      client:
+        url: http://localhost:8888
+        username: admin
+        password: admin 
+            
+zuul:
+  routes:
+    api:
+      path: /api/data/**
+      url: http://localhost:8765/data
+      sensitive-headers:
+      
+  host:
+    connect-timeout-millis: 30000
+    socket-timeout-millis: 30000
+    connection-request-timeout-millis: 30000
+  
+server:
+  connection-timeout: 30000
+  port: 81
+  compression:
+    enabled: true
+
+
+logging:
+  level:
+    ROOT: WARN
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+
+tomcat:
+  ajp:
+    port: 9090
+
+auth:
+  server:
+    clientId: client
+    clientSecret: secret123
+    url: http://localhost:8765/authapi
+    
+#app:
+#  ConnectTimeout: 100
+#  ReadTimeout: 3000
+  
+  
+# Acucator Information
+info:
+  app:
+    name: WEL Portal service
+    description: This is wel portal application
+    version: 1.0.0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  endpoint:
+    health:
+      show-details: ALWAYS        
