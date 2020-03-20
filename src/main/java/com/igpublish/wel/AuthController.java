@@ -11,6 +11,7 @@ import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
@@ -60,17 +61,71 @@ public class AuthController {
 	String auth_client;
 
 	@Value("${auth.server.clientSecret}")
-	String auth_secret;    
+	String auth_secret;   
+	
+	@CrossOrigin(origins = "*")
+	@RequestMapping(value = "/info", method = RequestMethod.GET)
+	public String info(Model model, HttpServletRequest httprequest, HttpServletResponse httpresponse) {
+		
+        String auth_header = httprequest.getHeader("Authorization");
+        if(auth_header == null) {
+            auth_header = httprequest.getHeader("authorization");
+        }
+        
+        // Add the Log to Report-Server
+     	if(auth_header != null) {
+
+     			Base64.Decoder decoder = Base64.getDecoder();
+     			try {
+     				  
+     				HttpClient client = HttpClientBuilder.create().build();
+     				
+     		    	String url = auth_server_url+"/auth/me";
+     		    	
+     		    	HttpPost httpPost = new HttpPost(url);
+     		    			 httpPost.addHeader("Authorization",auth_header);
+     		    			
+     		    	HttpResponse response;		    	
+     				response = client.execute(httpPost);
+     				
+     				int statusCode = response.getStatusLine().getStatusCode();
+     			
+         		    HttpEntity entity = response.getEntity();
+         		    InputStream  is = new BufferedInputStream(entity.getContent(), bufferSize);
+         		    			 is.mark(bufferSize);
+         		    			 
+         		    String restext = IOUtils.toString(is, "utf-8");
+         		    
+         		    JSONObject resJson = new JSONObject(restext);
+         		    
+         		    return new String(decoder.decode(resJson.getString("name").getBytes()), "UTF-8");
+         		    
+     			} catch (ClientProtocolException e) {
+     				e.printStackTrace();
+     			} catch (IOException e) {
+     				e.printStackTrace();
+     			} 
+     	}
+		
+		return "Error";
+		
+	}
+	
 	
 	@CrossOrigin(origins = "*")
 	@RequestMapping(value = "/verify", method = RequestMethod.GET)
 	public HashMap verifyAccessCommon(Model model, HttpServletRequest httprequest, HttpServletResponse httpresponse) {
+
 		HashMap result = new HashMap();
 		String remoteAddress = httprequest.getRemoteAddr();
-        String remoteUrl = httprequest.getHeader("referer");
-        result = verify("ip", remoteAddress, remoteUrl, null, null, httprequest.getSession().getId());
-        if(result.containsKey("error")) {
-        	result = verify("referer", remoteAddress, remoteUrl, null, null, httprequest.getSession().getId());
+        String remoteUrl = (String) httprequest.getSession().getAttribute("referer");
+        String remoteAffiliate = (String) httprequest.getSession().getAttribute("affiliate");
+        result = verify("ip", remoteAddress, remoteUrl, null, null, httprequest.getSession().getId(), httprequest);
+        if(result.containsKey("error") && remoteUrl != null && remoteUrl.startsWith("http")) {
+        	result = verify("referer", remoteAddress, remoteUrl, null, null, httprequest.getSession().getId(), httprequest);
+            if(result.containsKey("error") && remoteAffiliate != null && !remoteAffiliate.trim().equals("")) {
+        		return verify("key", remoteAddress, remoteUrl, remoteAffiliate, null, httprequest.getSession().getId(), httprequest);
+            }
         }
 		return result;
 	}
@@ -82,7 +137,7 @@ public class AuthController {
 		String remoteAddress = httprequest.getRemoteAddr();
         String remoteUrl = httprequest.getHeader("referer");
 		String key = httprequest.getParameter("AffiliateKey");
-		return verify("key", remoteAddress, remoteUrl, key, null, httprequest.getSession().getId());
+		return verify("key", remoteAddress, remoteUrl, key, null, httprequest.getSession().getId(), httprequest);
 	}
 
 	@CrossOrigin(origins = "*")
@@ -96,7 +151,7 @@ public class AuthController {
 		
 		System.out.println(username + " \t " + password);
 		
-		return verify("login", remoteAddress, remoteUrl, username, password, httprequest.getSession().getId());
+		return verify("login", remoteAddress, remoteUrl, username, password, httprequest.getSession().getId(), httprequest);
 		
 	}
 
@@ -104,11 +159,17 @@ public class AuthController {
 	@RequestMapping(value = "/revoke/{token}", method = RequestMethod.GET)
 	public HashMap verifyAccessLogin(Model model, HttpServletRequest httprequest, HttpServletResponse httpresponse,
 			@PathVariable("token") String token) {
-		HashMap result = new HashMap();
+		
+		// Invalid the user's current session too
+		HttpSession session = httprequest.getSession(false);
+		
+		if(session!=null)
+			session.invalidate();
+
 		return revoke(token);
 	}
 	
-	private HashMap verify(String type, String ip, String referer, String access, String value, String sessionid) {
+	private HashMap verify(String type, String ip, String referer, String access, String value, String sessionid, HttpServletRequest httprequest) {
 		HashMap result = new HashMap();
 		
 		JSONObject authInfo = null;
