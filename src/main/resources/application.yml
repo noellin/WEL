@@ -24,7 +24,7 @@ zuul:
   
 server:
   connection-timeout: 30000
-  port: 81
+  port: 82
   compression:
     enabled: true
 
