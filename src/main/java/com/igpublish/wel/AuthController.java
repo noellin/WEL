@@ -110,7 +110,13 @@ public class AuthController {
 		return "Error";
 		
 	}
-	
+
+	@CrossOrigin(origins = "*")
+	@RequestMapping(value = "/ip", method = RequestMethod.GET)
+	public String ip(Model model, HttpServletRequest httprequest, HttpServletResponse httpresponse) {
+		String remoteAddress = httprequest.getRemoteAddr();
+		return remoteAddress;
+	}
 	
 	@CrossOrigin(origins = "*")
 	@RequestMapping(value = "/verify", method = RequestMethod.GET)
