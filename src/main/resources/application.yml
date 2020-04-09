@@ -24,7 +24,7 @@ zuul:
   
 server:
   connection-timeout: 30000
-  port: 82
+  port: 6180
   compression:
     enabled: true
 
@@ -37,7 +37,7 @@ logging:
 
 tomcat:
   ajp:
-    port: 9090
+    port: 9999
 
 auth:
   server:
